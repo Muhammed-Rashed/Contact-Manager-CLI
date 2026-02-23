@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 public class ContactService : IContactService
 {
     private readonly Dictionary<Guid, Contact> _contacts = new Dictionary<Guid, Contact>();
+    private readonly IContactRepository _repository;
+    public ContactService(IContactRepository repository)
+    {
+        _repository = repository;
+    }
 
     public async Task<Contact> Add(string name, string phone, string email)
     {
@@ -100,5 +105,16 @@ public class ContactService : IContactService
         return await Task.FromResult(result);
     }
 
+    public async Task Load()
+    {
+        List<Contact> contacts = await _repository.Load();
+        foreach (var c in contacts)
+            _contacts[c.Id] = c;
+    }
+
+    public async Task Save()
+    {
+        await _repository.Save(_contacts.Values);
+    }
     public int Count => _contacts.Count;
 }

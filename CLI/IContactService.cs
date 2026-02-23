@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 
 public interface IContactService
 {
+    Task Load();
+    Task Save();
     Task<Contact> Add(string name, string phone, string email);
     Task<Contact> GetById(Guid id);
     Task<Contact> GetByQuery(string query);
