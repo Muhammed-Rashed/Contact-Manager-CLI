@@ -2,45 +2,52 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-public class ContactService
+public class ContactService : IContactService
 {
-	private readonly List<Contact> _contacts = new List<Contact>();
+    private readonly List<Contact> _contacts = new List<Contact>();
 
-	public Contact Add(string name, string phone, string email)
-	{
-		var contact = new Contact(name, phone, email);
-		_contacts.Add(contact);
-		return contact;
-	}
+    public Contact Add(string name, string phone, string email)
+    {
+        var contact = new Contact(name, phone, email);
+        _contacts.Add(contact);
+        return contact;
+    }
 
-	public Contact GetById(Guid id)
-	{
-		return _contacts.FirstOrDefault(c => c.Id == id);
-	}
+    public Contact GetById(Guid id)
+    {
+        return _contacts.FirstOrDefault(c => c.Id == id);
+    }
 
-	public Contact GetByQuery(string query)
-	{
-		if (Guid.TryParse(query, out Guid id))
-			return GetById(id);
+    public Contact GetByQuery(string query)
+    {
+        if (Guid.TryParse(query, out Guid id))
+            return GetById(id);
 
-		return _contacts.FirstOrDefault(c =>
-			c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
-	}
+        return _contacts.FirstOrDefault(c =>
+            c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
 
-	public IReadOnlyList<Contact> GetAll()
-	{
-		return _contacts.AsReadOnly();
-	}
+    public IReadOnlyList<Contact> GetAll()
+    {
+        return _contacts.AsReadOnly();
+    }
 
-	public Contact Edit(Guid id, string name, string phone, string email)
-	{
-        throw new NotImplementedException();
+    public bool Edit(Guid id, string name, string phone, string email)
+    {
+        var contact = GetById(id);
+        if (contact == null) return false;
+
+        contact.Name = name;
+        contact.Phone = phone;
+        contact.Email = email;
+        return true;
     }
 
     public bool Delete(Guid id)
     {
         var contact = GetById(id);
         if (contact == null) return false;
+
         _contacts.Remove(contact);
         return true;
     }
@@ -57,11 +64,11 @@ public class ContactService
     }
 
     public IEnumerable<Contact> Filter(
-    string? nameContains = null,
-    string? emailContains = null,
-    string? phoneContains = null,
-    DateTime? createdAfter = null,
-    DateTime? createdBefore = null)
+        string? nameContains = null,
+        string? emailContains = null,
+        string? phoneContains = null,
+        DateTime? createdAfter = null,
+        DateTime? createdBefore = null)
     {
         IEnumerable<Contact> result = _contacts;
 
