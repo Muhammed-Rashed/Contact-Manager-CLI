@@ -1,76 +1,83 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 public class ContactService : IContactService
 {
-    private readonly List<Contact> _contacts = new List<Contact>();
+    private readonly Dictionary<Guid, Contact> _contacts = new Dictionary<Guid, Contact>();
 
-    public Contact Add(string name, string phone, string email)
+    public async Task<Contact> Add(string name, string phone, string email)
     {
         var contact = new Contact(name, phone, email);
-        _contacts.Add(contact);
-        return contact;
+        _contacts[contact.Id] = contact;
+        return await Task.FromResult(contact);
     }
 
-    public Contact GetById(Guid id)
+    public async Task<Contact> GetById(Guid id)
     {
-        return _contacts.FirstOrDefault(c => c.Id == id);
+        if (_contacts.ContainsKey(id))
+            return await Task.FromResult(_contacts[id]);
+        return await Task.FromResult<Contact>(null);
     }
 
-    public Contact GetByQuery(string query)
+    public async Task<Contact> GetByQuery(string query)
     {
         if (Guid.TryParse(query, out Guid id))
-            return GetById(id);
+            return await GetById(id);
 
-        return _contacts.FirstOrDefault(c =>
+        Contact found = _contacts.Values.FirstOrDefault(c =>
             c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+        return await Task.FromResult(found);
     }
 
-    public IReadOnlyList<Contact> GetAll()
+    public async Task<IReadOnlyList<Contact>> GetAll()
     {
-        return _contacts.AsReadOnly();
+        return await Task.FromResult<IReadOnlyList<Contact>>(
+            new List<Contact>(_contacts.Values).AsReadOnly());
     }
 
-    public bool Edit(Guid id, string name, string phone, string email)
+    public async Task<bool> Edit(Guid id, string name, string phone, string email)
     {
-        var contact = GetById(id);
-        if (contact == null) return false;
+        if (!_contacts.ContainsKey(id))
+            return await Task.FromResult(false);
 
-        contact.Name = name;
-        contact.Phone = phone;
-        contact.Email = email;
-        return true;
+        _contacts[id].Name = name;
+        _contacts[id].Phone = phone;
+        _contacts[id].Email = email;
+        return await Task.FromResult(true);
     }
 
-    public bool Delete(Guid id)
+    public async Task<bool> Delete(Guid id)
     {
-        var contact = GetById(id);
-        if (contact == null) return false;
+        if (!_contacts.ContainsKey(id))
+            return await Task.FromResult(false);
 
-        _contacts.Remove(contact);
-        return true;
+        _contacts.Remove(id);
+        return await Task.FromResult(true);
     }
 
-    public IEnumerable<Contact> Search(string query)
+    public async Task<IEnumerable<Contact>> Search(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return _contacts;
+            return await Task.FromResult(_contacts.Values.AsEnumerable());
 
-        return _contacts.Where(c =>
+        var results = _contacts.Values.Where(c =>
             c.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             c.Phone.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             c.Email.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        return await Task.FromResult(results);
     }
 
-    public IEnumerable<Contact> Filter(
-        string? nameContains = null,
-        string? emailContains = null,
-        string? phoneContains = null,
+    public async Task<IEnumerable<Contact>> Filter(
+        string nameContains = null,
+        string emailContains = null,
+        string phoneContains = null,
         DateTime? createdAfter = null,
         DateTime? createdBefore = null)
     {
-        IEnumerable<Contact> result = _contacts;
+        IEnumerable<Contact> result = _contacts.Values;
 
         if (!string.IsNullOrWhiteSpace(nameContains))
             result = result.Where(c =>
@@ -90,7 +97,7 @@ public class ContactService : IContactService
         if (createdBefore.HasValue)
             result = result.Where(c => c.CreationDate <= createdBefore.Value);
 
-        return result;
+        return await Task.FromResult(result);
     }
 
     public int Count => _contacts.Count;

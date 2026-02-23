@@ -1,20 +1,20 @@
+using System;
+using System.Collections.Generic;
+
 public class ListContactsHandler : BaseHandler, IContactHandler
 {
     private readonly IContactService _service;
 
-    public ListContactsHandler(IContactService service)
-    {
-        _service = service;
-    }
+    public ListContactsHandler(IContactService service) { _service = service; }
 
-    public void Handle()
+    public async void Handle()
     {
         Console.Clear();
         SectionHeader("All Contacts");
 
         if (_service.Count == 0) { DisplayError("No contacts available."); return; }
 
-        var contacts = _service.GetAll();
+        IReadOnlyList<Contact> contacts = await _service.GetAll();
 
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"  {"ID",-38}  Name");

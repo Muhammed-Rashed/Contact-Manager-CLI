@@ -42,7 +42,7 @@ public abstract class BaseHandler
         do
         {
             Console.Write(label);
-            value = Console.ReadLine()?.Trim() ?? "";
+            value = Console.ReadLine().Trim();
             if (string.IsNullOrWhiteSpace(value))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
