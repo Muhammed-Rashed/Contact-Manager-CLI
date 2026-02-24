@@ -2,7 +2,20 @@
 
 A Simple C# program that helps in Managing the contacts of the user for effective communication using a **modern contact indexing system**
 
-[TOC]
+## Table of Contents
+
+- [Contact-Manager-CLI](#contact-manager-cli)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+  - [How to Run](#how-to-run)
+    - [Option 1: Visual Studio](#option-1-visual-studio)
+    - [Option 2: Command Line](#option-2-command-line)
+  - [Features](#features)
+  - [Data Storage](#data-storage)
+  - [Architecture](#architecture)
+    - [UML diagram](#uml-diagram)
+    - [Search Performance](#search-performance)
+  - [Notes](#notes)
 
 ## Prerequisites
 
