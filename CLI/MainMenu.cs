@@ -1,10 +1,12 @@
 ﻿public class MainMenu
 {
     private readonly Dictionary<string, IContactHandler> _handlers;
+    private readonly IContactService _service;
 
-    public MainMenu(Dictionary<string, IContactHandler> handlers)
+    public MainMenu(Dictionary<string, IContactHandler> handlers, IContactService service)
     {
         _handlers = handlers;
+        _service = service;
     }
 
     private void Display()
@@ -34,6 +36,11 @@
 
     public void Run()
     {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(_service.Count > 0
+        ? $"  {_service.Count} contact(s) loaded.\n"
+        : "  No contacts found.\n");
+        Console.ResetColor();
         while (true)
         {
             Display();

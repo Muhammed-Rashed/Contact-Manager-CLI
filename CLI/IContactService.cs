@@ -8,7 +8,7 @@ public interface IContactService
     Task Save();
     Task<Contact> Add(string name, string phone, string email);
     Task<Contact> GetById(Guid id);
-    Task<Contact> GetByQuery(string query);
+    Task<List<Contact>> GetByQuery(string query);
     Task<IReadOnlyList<Contact>> GetAll();
     Task<bool> Edit(Guid id, string name, string phone, string email);
     Task<bool> Delete(Guid id);

@@ -3,8 +3,13 @@ using System;
 public class DeleteContactHandler : BaseHandler, IContactHandler
 {
     private readonly IContactService _service;
+    private readonly IContactSelector _selector;
 
-    public DeleteContactHandler(IContactService service) { _service = service; }
+    public DeleteContactHandler(IContactService service, IContactSelector selector)
+    {
+        _service = service;
+        _selector = selector;
+    }
 
     public async void Handle()
     {
@@ -13,11 +18,8 @@ public class DeleteContactHandler : BaseHandler, IContactHandler
 
         if (_service.Count == 0) { DisplayError("No contacts available."); return; }
 
-        Console.Write("  Enter contact ID or Name: ");
-        string query = Console.ReadLine().Trim();
-
-        Contact found = await _service.GetByQuery(query);
-        if (found == null) { DisplayError($"No contact found matching \"{query}\"."); return; }
+        Contact found = await _selector.Select("delete");
+        if (found == null) { Pause(); return; }
 
         PrintContactCard(found);
 

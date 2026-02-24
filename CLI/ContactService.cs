@@ -50,14 +50,20 @@ public class ContactService : IContactService
         return await Task.FromResult<Contact>(null);
     }
 
-    public async Task<Contact> GetByQuery(string query)
+    public async Task<List<Contact>> GetByQuery(string query)
     {
         if (Guid.TryParse(query, out Guid id))
-            return await GetById(id);
+        {
+            var single = new List<Contact>();
+            if (_byId.ContainsKey(id)) single.Add(_byId[id]);
+            return await Task.FromResult(single);
+        }
 
-        Contact found = _byId.Values
-            .FirstOrDefault(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
-        return await Task.FromResult(found);
+        List<Contact> matches = _byId.Values
+            .Where(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return await Task.FromResult(matches);
     }
 
     public async Task<IReadOnlyList<Contact>> GetAll()
