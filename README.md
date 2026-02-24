@@ -31,50 +31,19 @@ dotnet run
 
 ---
 
-## Project Structure
-
-``` bash
-
-CLI/
-├── Contact.cs               //Data model
-├── ContactIndex.cs          //Generic index for fast search
-├── IContactService.cs       //Service contract
-├── ContactService.cs        //Business logic
-├── IContactRepository.cs    //Repository contract
-├── JsonContactRepository.cs //JSON file read/write
-├── IContactSelector.cs      //Selector contract
-├── ContactSelector.cs       //Search and pick a contact
-├── IContactHandler.cs       //Handler contract
-├── Handlers/
-│   ├── BaseHandler.cs           //Shared UI helpers
-│   ├── AddContactHandler.cs
-│   ├── EditContactHandler.cs
-│   ├── DeleteContactHandler.cs
-│   ├── ViewContactsHandler.cs
-│   ├── ListContactsHandler.cs
-│   ├── SearchContactHandler.cs
-│   ├── FilterContactHandler.cs
-│   └── SaveContactsHandler.cs
-├── MainMenu.cs    //Menu loop and routing
-├── Program.cs     //Entry point and dependency 
-└── contacts.json  //Data file (auto created on first save)
-```
-
----
-
 ## Features
 
-| Option | Feature | Description |
-|--------|---------|-------------|
-| 1 | Add Contact | Add a new contact with Name, Phone, Email |
-| 2 | Edit Contact | Search for a contact and edit their details |
-| 3 | Delete Contact | Search for a contact and delete them |
-| 4 | View Contacts | Show full details of all contacts |
-| 5 | List Contacts | Show ID and Name of all contacts |
-| 6 | Search | Search across all fields with one query |
-| 7 | Filter | Filter by Name, Email, Phone, or Date range |
-| 8 | Save | Save all contacts to contacts.json |
-| 9 | Exit | Exit the application |
+| Option | Feature        | Description                                 |
+| ------ | -------------- | ------------------------------------------- |
+| 1      | Add Contact    | Add a new contact with Name, Phone, Email   |
+| 2      | Edit Contact   | Search for a contact and edit their details |
+| 3      | Delete Contact | Search for a contact and delete them        |
+| 4      | View Contacts  | Show full details of all contacts           |
+| 5      | List Contacts  | Show ID and Name of all contacts            |
+| 6      | Search         | Search across all fields with one query     |
+| 7      | Filter         | Filter by Name, Email, Phone, or Date range |
+| 8      | Save           | Save all contacts to contacts.json          |
+| 9      | Exit           | Exit the application                        |
 
 ---
 
@@ -121,6 +90,15 @@ classDiagram
         +Contact(name, phone, email)
     }
 
+    class ContactIndex {
+        -Dictionary~string,List~Contact~~ _index
+        -Func~Contact,string~ _keySelector
+        +ContactIndex(keySelector)
+        +Add(contact) void
+        +Remove(contact) void
+        +Search(query) IEnumerable~Contact~
+    }
+
     class IContactRepository {
         <<interface>>
         +Save(contacts) Task
@@ -131,14 +109,14 @@ classDiagram
         -string filePath
         +JsonContactRepository(path)
         +Save(contacts) Task
-        +Load() Task~List~Contact
+        +Load() Task~List~Contact~~
     }
 
     class IContactService {
         <<interface>>
         +Load() Task
         +Save() Task
-        +Add(name, phone, email) Task~Contact
+        +Add(name, phone, email) Task~Contact~
         +GetById(id) Task~Contact~
         +GetByQuery(query) Task~List~Contact~~
         +GetAll() Task~IReadOnlyList~Contact~~
@@ -149,22 +127,66 @@ classDiagram
         +Count int
     }
 
-    class ContactIndex {
-        -Dictionary _index
-        -Func~Contact,string~ _keySelector
-        +ContactIndex(keySelector)
-        +Add(contact) void
-        +Remove(contact) void
-        +Search(query) IEnumerable~Contact~
+    class AddService {
+        -Dictionary~Guid,Contact~ _byId
+        -List~ContactIndex~ _indexes
+        +AddService(byId, indexes)
+        +Add(name, phone, email) Task~Contact~
+    }
+
+    class EditService {
+        -Dictionary~Guid,Contact~ _byId
+        -List~ContactIndex~ _indexes
+        +EditService(byId, indexes)
+        +Edit(id, name, phone, email) Task~bool~
+    }
+
+    class DeleteService {
+        -Dictionary~Guid,Contact~ _byId
+        -List~ContactIndex~ _indexes
+        +DeleteService(byId, indexes)
+        +Delete(id) Task~bool~
+    }
+
+    class SearchService {
+        -Dictionary~Guid,Contact~ _byId
+        -List~ContactIndex~ _indexes
+        +SearchService(byId, indexes)
+        +Search(query) Task~IEnumerable~Contact~~
+    }
+
+    class FilterService {
+        -Dictionary~Guid,Contact~ _byId
+        +FilterService(byId)
+        +Filter(name, email, phone, after, before) Task~IEnumerable~Contact~~
+    }
+
+    class SaveService {
+        -Dictionary~Guid,Contact~ _byId
+        -IContactRepository _repository
+        +SaveService(byId, repository)
+        +Save() Task
+    }
+
+    class LoadService {
+        -Dictionary~Guid,Contact~ _byId
+        -List~ContactIndex~ _indexes
+        -IContactRepository _repository
+        +LoadService(byId, indexes, repository)
+        +Load() Task
     }
 
     class ContactService {
         -Dictionary~Guid,Contact~ _byId
         -List~ContactIndex~ _indexes
-        -IContactRepository _repository
+        -AddService _addService
+        -EditService _editService
+        -DeleteService _deleteService
+        -SearchService _searchService
+        -FilterService _filterService
+        -SaveService _saveService
+        -LoadService _loadService
         +ContactService(repository)
-        -IndexContact(contact) void
-        -RemoveFromIndex(contact) void
         +Load() Task
         +Save() Task
         +Add(name, phone, email) Task~Contact~
@@ -196,11 +218,12 @@ classDiagram
 
     class BaseHandler {
         <<abstract>>
-        SectionHeader(title) void
-        PrintContactCard(contact) void
-        DisplayError(message) void
-        PromptRequired(label) string
-        Pause() void
+        #SectionHeader(title) void
+        #PrintContactCard(contact) void
+        #DisplayError(message) void
+        #PromptRequired(label) string
+        #PromptDecimal(label) decimal
+        #Pause() void
     }
 
     class AddContactHandler {
@@ -266,54 +289,73 @@ classDiagram
         +Main(args) void$
     }
 
-    IContactRepository      <|..  JsonContactRepository   
-    IContactService         <|..  ContactService          
-    IContactSelector        <|..  ContactSelector         
-    IContactHandler         <|..  BaseHandler             
-    BaseHandler             <|--  AddContactHandler       
-    BaseHandler             <|--  EditContactHandler      
-    BaseHandler             <|--  DeleteContactHandler    
-    BaseHandler             <|--  ViewContactHandler      
-    BaseHandler             <|--  ListContactsHandler     
-    BaseHandler             <|--  SearchContactHandler    
-    BaseHandler             <|--  FilterContactHandler    
-    BaseHandler             <|--  SaveContactsHandler     
+    IContactRepository <|.. JsonContactRepository 
+    IContactService <|.. ContactService 
+    IContactSelector <|.. ContactSelector 
+    IContactHandler <|.. BaseHandler 
+    BaseHandler <|-- AddContactHandler 
+    BaseHandler <|-- EditContactHandler 
+    BaseHandler <|-- DeleteContactHandler 
+    BaseHandler <|-- ViewContactHandler 
+    BaseHandler <|-- ListContactsHandler 
+    BaseHandler <|-- SearchContactHandler 
+    BaseHandler <|-- FilterContactHandler 
+    BaseHandler <|-- SaveContactsHandler 
 
-    ContactService          -->   IContactRepository      
-    ContactService          -->   ContactIndex            
-    ContactSelector         -->   IContactService         
-    EditContactHandler      -->   IContactService    
-    EditContactHandler      -->   IContactSelector   
-    DeleteContactHandler    -->   IContactService         
-    DeleteContactHandler    -->   IContactSelector        
-    AddContactHandler       -->   IContactService         
-    ViewContactHandler      -->   IContactService         
-    ListContactsHandler     -->   IContactService         
-    SearchContactHandler    -->   IContactService         
-    FilterContactHandler    -->   IContactService         
-    SaveContactsHandler     -->   IContactService         
-    MainMenu                -->   IContactService         
-    MainMenu                -->   IContactHandler         
-    Program                 -->   MainMenu
-    Program                 -->   IContactService         
-    Program                 -->   IContactRepository      
-    Program                 -->   IContactSelector        
-    ContactService          -->   Contact                
-    JsonContactRepository   -->   Contact                
+    ContactService --> AddService 
+    ContactService --> EditService 
+    ContactService --> DeleteService 
+    ContactService --> SearchService 
+    ContactService --> FilterService 
+    ContactService --> SaveService 
+    ContactService --> LoadService 
+    ContactService --> ContactIndex 
+    ContactService --> IContactRepository 
 
+    AddService --> ContactIndex 
+    EditService --> ContactIndex 
+    DeleteService --> ContactIndex 
+    SearchService --> ContactIndex 
+
+    SaveService --> IContactRepository 
+    LoadService --> IContactRepository 
+    LoadService --> ContactIndex 
+
+    ContactSelector --> IContactService 
+    EditContactHandler --> IContactService 
+    EditContactHandler --> IContactSelector 
+    DeleteContactHandler --> IContactService 
+    DeleteContactHandler --> IContactSelector 
+    AddContactHandler --> IContactService 
+    ViewContactHandler --> IContactService 
+    ListContactsHandler --> IContactService 
+    SearchContactHandler --> IContactService 
+    FilterContactHandler --> IContactService 
+    SaveContactsHandler --> IContactService 
+
+    MainMenu --> IContactHandler 
+    MainMenu --> IContactService 
+
+    Program --> MainMenu 
+    Program --> IContactService 
+    Program --> IContactRepository 
+    Program --> IContactSelector 
+
+    ContactService --> Contact 
+    JsonContactRepository --> Contact 
 ```
 
 ### Search Performance
 
 Instead of scanning all contacts linearly, the system maintains a `List<ContactIndex>` where each index is a hash table keyed by a contact field. Search checks all indexes and merges results using a `HashSet` to avoid duplicates.
 
-| Operation | Complexity |
-|---|---|
-| Add | O(1) |
-| GetById | O(1) |
-| Search | O(n) where n = total data points |
-| Delete | O(1) |
-| Edit | O(1) |
+| Operation | Complexity                       |
+| --------- | -------------------------------- |
+| Add       | O(1)                             |
+| GetById   | O(1)                             |
+| Search    | O(n) where n = total data points |
+| Delete    | O(1)                             |
+| Edit      | O(1)                             |
 
 ---
 
