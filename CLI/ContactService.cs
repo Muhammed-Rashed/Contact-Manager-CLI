@@ -5,24 +5,48 @@ using System.Threading.Tasks;
 
 public class ContactService : IContactService
 {
-    private readonly Dictionary<Guid, Contact> _contacts = new Dictionary<Guid, Contact>();
+    private readonly Dictionary<Guid, Contact> _byId = new Dictionary<Guid, Contact>();
+
+    private readonly List<ContactIndex> _indexes;
     private readonly IContactRepository _repository;
+
     public ContactService(IContactRepository repository)
     {
         _repository = repository;
+        _indexes = new List<ContactIndex>
+        {
+            new ContactIndex(c => c.Name),
+            new ContactIndex(c => c.Phone),
+            new ContactIndex(c => c.Email),
+            new ContactIndex(c => c.CreationDate.ToString("yyyy-MM-dd")),
+        };
+    }
+
+    private void IndexContact(Contact contact)
+    {
+        _byId[contact.Id] = contact;
+        foreach (var index in _indexes)
+            index.Add(contact);
+    }
+
+    private void RemoveFromIndex(Contact contact)
+    {
+        _byId.Remove(contact.Id);
+        foreach (var index in _indexes)
+            index.Remove(contact);
     }
 
     public async Task<Contact> Add(string name, string phone, string email)
     {
         var contact = new Contact(name, phone, email);
-        _contacts[contact.Id] = contact;
+        IndexContact(contact);
         return await Task.FromResult(contact);
     }
 
     public async Task<Contact> GetById(Guid id)
     {
-        if (_contacts.ContainsKey(id))
-            return await Task.FromResult(_contacts[id]);
+        if (_byId.ContainsKey(id))
+            return await Task.FromResult(_byId[id]);
         return await Task.FromResult<Contact>(null);
     }
 
@@ -31,48 +55,63 @@ public class ContactService : IContactService
         if (Guid.TryParse(query, out Guid id))
             return await GetById(id);
 
-        Contact found = _contacts.Values.FirstOrDefault(c =>
-            c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+        Contact found = _byId.Values
+            .FirstOrDefault(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
         return await Task.FromResult(found);
     }
 
     public async Task<IReadOnlyList<Contact>> GetAll()
     {
         return await Task.FromResult<IReadOnlyList<Contact>>(
-            new List<Contact>(_contacts.Values).AsReadOnly());
+            new List<Contact>(_byId.Values).AsReadOnly());
     }
 
     public async Task<bool> Edit(Guid id, string name, string phone, string email)
     {
-        if (!_contacts.ContainsKey(id))
+        if (!_byId.ContainsKey(id))
             return await Task.FromResult(false);
 
-        _contacts[id].Name = name;
-        _contacts[id].Phone = phone;
-        _contacts[id].Email = email;
+        Contact contact = _byId[id];
+        RemoveFromIndex(contact);
+
+        contact.Name = name;
+        contact.Phone = phone;
+        contact.Email = email;
+
+        IndexContact(contact);
         return await Task.FromResult(true);
     }
 
     public async Task<bool> Delete(Guid id)
     {
-        if (!_contacts.ContainsKey(id))
+        if (!_byId.ContainsKey(id))
             return await Task.FromResult(false);
 
-        _contacts.Remove(id);
+        Contact contact = _byId[id];
+        RemoveFromIndex(contact);
         return await Task.FromResult(true);
     }
 
     public async Task<IEnumerable<Contact>> Search(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return await Task.FromResult(_contacts.Values.AsEnumerable());
+            return await Task.FromResult(_byId.Values.AsEnumerable());
 
-        var results = _contacts.Values.Where(c =>
-            c.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-            c.Phone.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-            c.Email.Contains(query, StringComparison.OrdinalIgnoreCase));
+        if (Guid.TryParse(query, out Guid id))
+        {
+            var single = new List<Contact>();
+            if (_byId.ContainsKey(id)) single.Add(_byId[id]);
+            return await Task.FromResult(single.AsEnumerable());
+        }
 
-        return await Task.FromResult(results);
+        HashSet<Guid> seen = new HashSet<Guid>();
+        List<Contact> results = new List<Contact>();
+
+        foreach (var index in _indexes)
+            foreach (var c in index.Search(query))
+                if (seen.Add(c.Id)) results.Add(c);
+
+        return await Task.FromResult(results.AsEnumerable());
     }
 
     public async Task<IEnumerable<Contact>> Filter(
@@ -82,7 +121,7 @@ public class ContactService : IContactService
         DateTime? createdAfter = null,
         DateTime? createdBefore = null)
     {
-        IEnumerable<Contact> result = _contacts.Values;
+        IEnumerable<Contact> result = _byId.Values;
 
         if (!string.IsNullOrWhiteSpace(nameContains))
             result = result.Where(c =>
@@ -105,16 +144,17 @@ public class ContactService : IContactService
         return await Task.FromResult(result);
     }
 
+    public async Task Save()
+    {
+        await _repository.Save(_byId.Values);
+    }
+
     public async Task Load()
     {
         List<Contact> contacts = await _repository.Load();
         foreach (var c in contacts)
-            _contacts[c.Id] = c;
+            IndexContact(c);
     }
 
-    public async Task Save()
-    {
-        await _repository.Save(_contacts.Values);
-    }
-    public int Count => _contacts.Count;
+    public int Count => _byId.Count;
 }

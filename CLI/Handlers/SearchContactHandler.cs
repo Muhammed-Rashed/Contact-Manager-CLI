@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 public class SearchContactHandler : BaseHandler, IContactHandler
@@ -15,11 +16,13 @@ public class SearchContactHandler : BaseHandler, IContactHandler
 
         if (_service.Count == 0) { DisplayError("No contacts available."); return; }
 
-        Console.Write("  Search (name, phone, or email): ");
+        Console.Write("  Search (name, phone, email, date or ID): ");
         string query = Console.ReadLine().Trim();
 
+        Stopwatch sw = Stopwatch.StartNew();
         IEnumerable<Contact> results = await _service.Search(query);
         List<Contact> list = results.ToList();
+        sw.Stop();
 
         if (list.Count == 0) { DisplayError($"No contacts found matching \"{query}\"."); return; }
 
@@ -29,6 +32,10 @@ public class SearchContactHandler : BaseHandler, IContactHandler
 
         foreach (var c in list)
             PrintContactCard(c);
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"\n  Search completed in {sw.ElapsedMilliseconds}ms ({sw.ElapsedTicks} ticks)");
+        Console.ResetColor();
 
         Pause();
     }

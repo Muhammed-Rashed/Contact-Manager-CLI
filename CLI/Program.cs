@@ -1,10 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
+
+string path = Path.GetFullPath("contacts.json");
+Console.WriteLine($"Looking for: {path}");
+Console.WriteLine($"File exists: {File.Exists(path)}");
 
 IContactRepository repository = new JsonContactRepository("contacts.json");
 IContactService service = new ContactService(repository);
 
-await ((ContactService)service).Load();
+await service.Load();
+
+Console.WriteLine($"Contacts loaded: {service.Count}");
 
 var handlers = new Dictionary<string, IContactHandler>
 {
@@ -17,4 +25,5 @@ var handlers = new Dictionary<string, IContactHandler>
     { "7", new FilterContactHandler(service) },
     { "8", new SaveContactsHandler(service)          },
 };
+
 new MainMenu(handlers).Run();
